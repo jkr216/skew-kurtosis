@@ -137,8 +137,8 @@ mult_weekly_returns <- tq_repeat_df(asset_returns_3, n = 3)
 
 weights_table <-  
             c(0.25, 0.25, 0.20, 0.20, 0.10,
-              0.20, 0.20, 0.25, 0.25, 0.10,
-              0.20, 0.20, 0.20, 0.20, 0.20)
+              0.50, 0.25, 0.10, 0.15, 0.05,
+              0.65, 0.10, 0.10, 0.10, 0.05)
 
 
 weights_table <- tibble(symbols) %>%
@@ -155,10 +155,6 @@ portfolios_3 <-
                weights = weights_table,
                col_rename = NULL,
                wealth.index = FALSE) 
-%>% 
-  spread(portfolio, portfolio.returns) %>% 
-  `colnames<-`(levels)
-
 skews <- 
   portfolios_3 %>%
   select(-date) %>%
@@ -177,10 +173,23 @@ skews <-
 ```
 
 ```{r}
-portfolios_3 %>% 
-  ggplot(aes(x = portfolio.returns)) + 
-  geom_histogram(alpha = 1, binwidth = .01, fill = "cornflowerblue", 
-                 color = "cornflowerblue") +
+portfolios_3_for_hist <- portfolios_3 %>% 
+  mutate(hist_col_blue = ifelse(portfolio.returns > -.025 & portfolio.returns < .025,
+                                portfolio.returns, NA),
+         hist_col_red = ifelse(portfolio.returns < -.025, portfolio.returns, NA),
+         hist_col_green = ifelse(portfolio.returns > .025, portfolio.returns, NA))
+
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+portfolios_3_for_hist %>% 
+  ggplot() + 
+  geom_histogram(aes(x = hist_col_red), binwidth = 0.003, fill = "red") +
+  geom_histogram(aes(x = hist_col_blue), binwidth = 0.003, fill = "blue") + 
+  geom_histogram(aes(x = hist_col_green), binwidth = 0.003, fill = "green") +
   ggtitle("Portfolio Monthly Returns Since 2013") +
   xlab("monthly returns") +
   ylab("distribution") + 

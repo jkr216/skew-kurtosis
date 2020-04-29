@@ -1,0 +1,138 @@
+---
+title: "3 Asset Skew"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+```{r message=FALSE, warning=FALSE}
+
+asset_returns_3 <- 
+  symbols %>% 
+  tq_get(get = "stock.prices", from = "2013-01-01") %>% 
+  group_by(symbol) %>% 
+  tq_transmute(adjusted, periodReturn, period = "monthly", col_rename = "returns")
+
+mult_weekly_returns <- tq_repeat_df(asset_returns_3, n = 3)
+
+weights_table <-  
+            c(0.25, 0.25, 0.20, 0.20, 0.10,
+              0.50, 0.25, 0.10, 0.15, 0.05,
+              0.65, 0.10, 0.10, 0.10, 0.05)
+
+
+weights_table <- tibble(symbols) %>%
+    tq_repeat_df(n = 3) %>%
+    bind_cols(tibble(weights)) %>%
+    group_by(portfolio)
+
+
+portfolios_3 <- 
+  mult_weekly_returns %>%
+  tq_portfolio(assets_col = symbol,
+               returns_col = returns,
+               weights = weights_table,
+               col_rename = NULL,
+               wealth.index = FALSE) 
+
+```
+
+
+```{r}
+
+portfolios_3_colored_returns_by_sd <- 
+  portfolios_3 %>% 
+  group_by(portfolio) %>% 
+  mutate(hist_col_blue = 
+           ifelse(portfolio.returns > (mean(portfolio.returns) - 2*sd(portfolio.returns)) &
+                  portfolio.returns < (mean(portfolio.returns) + 2*sd(portfolio.returns)),
+                  portfolio.returns, NA),
+         hist_col_red = 
+           ifelse(portfolio.returns < (mean(portfolio.returns) - 2*sd(portfolio.returns)), 
+                  portfolio.returns, NA),
+         hist_col_green = 
+           ifelse(portfolio.returns > (mean(portfolio.returns) + 2*sd(portfolio.returns)),
+                  portfolio.returns, NA))
+
+```
+
+Our new tibble is called `portfolios_3_colored_returns` and has a separate column for returns in different ranges. When make our call to `ggplot`, we will layer on a new histogram for each column and assign it a color. For example, our very negative returns will be added with 
+`geom_histogram(aes(x = hist_col_red), binwidth = 0.003, fill = "red")`.
+
+
+```{r message=FALSE, warning=FALSE}
+portfolios_3_colored_returns_by_sd %>% 
+  ggplot() + 
+  geom_histogram(aes(x = hist_col_red), binwidth = 0.003, fill = "red") +
+  geom_histogram(aes(x = hist_col_blue), binwidth = 0.003, fill = "blue") + 
+  geom_histogram(aes(x = hist_col_green), binwidth = 0.003, fill = "green") +
+  ggtitle("Portfolio Monthly Returns Since 2013") +
+  xlab("monthly returns") +
+  ylab("count") + 
+  facet_wrap(~portfolio)
+```
+
+Maybe we don't care about returns that are lower than 2 standard deviations but instead really want to know if any returns fall below a certain threshold, like -.025. That's probably of greater interest to the average investor. 
+
+```{r message=FALSE, warning=FALSE}
+  portfolios_3 %>% 
+  group_by(portfolio) %>% 
+  mutate(hist_col_blue = 
+           ifelse(portfolio.returns > -.025 &
+                  portfolio.returns < .025,
+                  portfolio.returns, NA),
+         hist_col_red = 
+           ifelse(portfolio.returns < -.025, 
+                  portfolio.returns, NA),
+         hist_col_green = 
+           ifelse(portfolio.returns > .025,
+                  portfolio.returns, NA)) %>% 
+  ggplot() + 
+  geom_histogram(aes(x = hist_col_red), binwidth = 0.003, fill = "red") +
+  geom_histogram(aes(x = hist_col_blue), binwidth = 0.003, fill = "blue") + 
+  geom_histogram(aes(x = hist_col_green), binwidth = 0.003, fill = "green") +
+  ggtitle("Portfolio Monthly Returns Since 2013") +
+  xlab("monthly returns") +
+  ylab("count") + 
+  facet_wrap(~portfolio)
+```
+
+
+```{r}
+skews <- 
+  portfolios_3 %>%
+  select(-date) %>%
+  gather(portfolio, portfolio.returns) %>%
+  group_by(portfolio) %>%
+  na.omit() %>% 
+  summarise(skew = skewness(portfolio.returns),
+            skew_byhand = 
+              (sum((portfolio.returns - mean(portfolio.returns))^3)/length(portfolio.returns))/
+              ((sum((portfolio.returns - mean(portfolio.returns))^2)/length(portfolio.returns)))^(3/2))
+
+skews
+```
+
+
+```{r}
+portfolios_3 %>% 
+  ggplot(aes(x = portfolio.returns)) + 
+  stat_density(geom = "line", alpha = 1, colour = "cornflowerblue") +
+  ggtitle("Portfolio Monthly Returns Since 2013") +
+  xlab("monthly returns") +
+  ylab("distribution") + 
+  facet_wrap(~portfolio)
+```
+
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

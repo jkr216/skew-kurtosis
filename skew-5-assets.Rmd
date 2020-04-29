@@ -17,15 +17,52 @@ Group by sector, high low skew per sector.
 App idea, choose a portfolio, see how distributed across the globe, run diagnostics, run montecarlo
 
 ```{r}
+symbols <- c( "TAP", "VLO", "AFL", "ESRX", 
+             "ABC", "QCOM", "SWKS", "LRCX",
+             "HST", "HCN", "NFLX")
+
+
+
+tq_prices <- symbols %>%
+  tq_get(get = "stock.prices", from = "1990-01-01") %>% 
+  group_by(symbol) %>% 
+  filter(row_number() ==1) 
+
+quandl_api_key("d9EidiiDWoFESfdk5nPy")
+
+wage_growth <- "FRED/CES0500000003" %>%
+    tq_get(get      = "quandl",
+           collapse = "monthly",
+           transform    = "rdiff",
+           from = "1990-01-01")
+
+
+wage_growth <- "FRED/A576RC1" %>%
+    tq_get(get      = "quandl",
+           collapse = "monthly",
+           transform    = "rdiff",
+           from = "1989-12-01")
+
+asset_returns_dplyr_byhand <- 
+  prices %>% 
+  to.monthly(indexAt = "last", OHLC = FALSE) %>% 
+  tk_tbl(preserve_index = TRUE, rename_index = "date")%>%
+  gather(asset, returns, -date) %>% 
+  group_by(asset) %>%  
+  mutate(returns = (log(returns) - log(lag(returns)))) %>%
+  spread(asset, returns) %>% 
+  select(date, symbols) %>% 
+  slice(-1)
 # get from 2000 or as early as possible, then filter based on user input - put it into a database, then filter it. then do the calcs
-
-sp500_random_100_prices <- 
+input_sector <- "Financials"
+sp500_sector_prices <- 
   tq_index("SP500") %>%
-  sample_n(20) %>%
-  tq_get(get = "stock.prices", from = "2015-01-01") 
+  filter(sector == input_sector) %>%
+  #sample_n(200) %>% 
+  tq_get(get = "stock.prices", from = "2016-01-01") 
 
-sp500_random_100_returns <- 
-  sp500_random_100_prices %>% 
+sp500_random_20_returns <- 
+  sp500_sector_prices %>% 
   #group_by(sector, symbol) %>% 
   select(date, symbol, sector, adjusted) %>% 
   #mutate to monthly returns; then could stay in dplyr
@@ -42,15 +79,19 @@ sp500_random_100_returns <-
             kurt = kurtosis(returns),
             kurt_byhand = 
               ((sum((returns - mean(returns))^4)/length(returns))/
-              ((sum((returns - mean(returns))^2)/length(returns))^2)) - 3) %>% 
-  group_by(sector) %>%
-  filter(skew == min(skew) | skew == max(skew))
+              ((sum((returns - mean(returns))^2)/length(returns))^2)) - 3, 
+         stddevi = sd(returns)) %>% 
+  #ungroup() %>%
+  group_by(sector) %>% 
+  filter(stddevi == min(stddevi) | stddevi == max(stddevi)) 
 
-sp500_random_100_returns %>% 
-  filter(skew == min(skew)) %>% 
-  ggplot(aes(x = returns, color = symbol)) +
-  stat_density(geom = "line", size = .75) + 
-  facet_wrap(~sector)
+sp500_random_20_returns %>%
+  ggplot(aes(x = returns, fill = symbol, color = symbol)) +
+  geom_histogram(binwdidth = .005) + 
+  geom_density(color = "blue") +
+  facet_wrap(~symbol)
+
+
 ```
 
 ```{r}
@@ -82,17 +123,57 @@ test <-
 
 ```{r, warning=FALSE, message=FALSE}
 symbols <- c("SPY","EFA", "IJS", "EEM","AGG")
+```
 
-asset_returns <- symbols %>% 
+XTS World
+
+```{r}
+prices <- 
+  getSymbols(symbols, src = 'yaho0', from = "2013-01-01", 
+             auto.assign = TRUE, warnings = FALSE) %>% 
+  map(~Cl(get(.))) %>%
+  reduce(merge) %>% 
+  `colnames<-`(symbols)
+
+prices_monthly <- to.monthly(prices, indexAt = "first", OHLC = FALSE)
+
+asset_returns_xts <- na.omit(Return.calculate(prices_monthly, method = "log"))
+
+w <- c(0.25, 0.25, 0.20, 0.20, 0.10)
+
+portfolio_returns_xts_rebalanced_monthly <- 
+  Return.portfolio(asset_returns_xts, weights = w, rebalance_on = "months") %>%
+  `colnames<-`("returns") %>% 
+  skewness(returns)
+```
+
+Tidyverse
+
+```{r}
+asset_returns_tidy <-  
+  prices %>% 
+  to.monthly(indexAt = "last", OHLC = FALSE) %>% 
+  tk_tbl(preserve_index = TRUE, rename_index = "date") %>%
+  gather(asset, returns, -date) %>% 
+  group_by(asset) %>%  
+  mutate(returns = (log(returns) - log(lag(returns))))
+```
+
+Tidyquant
+
+```{r}
+asset_returns <- 
+  symbols %>% 
   tq_get(get = "stock.prices", from = "1990-01-01") %>% 
   group_by(symbol) %>% 
   tq_transmute(adjusted, periodReturn, period = "weekly", col_rename = "returns")
-
-
-mult_weekly_returns <- tq_repeat_df(asset_returns, n = 3)
 ```
 
+And a Tidyquant method for testing out variations of our portfolio
+
 ```{r message=FALSE, warning=FALSE}
+
+mult_weekly_returns <- tq_repeat_df(asset_returns, n = 3)
 
 weights <-  c(0.25, 0.25, 0.20, 0.20, 0.10,
               0.20, 0.20, 0.25, 0.25, 0.10,
@@ -118,11 +199,9 @@ portfolios_3 <-
 
 skews <- 
   portfolios_3 %>%
-  select(-date) %>% 
-  #map_dfr(skewness) %>% 
+  select(-date) %>%
   gather(portfolio, returns) %>%
-  group_by(portfolio) %>% 
-  #filter(skew == min(skew) | skew == max(skew))
+  group_by(portfolio) %>%
   na.omit() %>% 
   summarise(skew = skewness(returns),
             skew_byhand = 

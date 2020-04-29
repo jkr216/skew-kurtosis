@@ -1,0 +1,32 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Workshop Title: 
+
+Data Science Workshop for Energy Traders and Risk Managers: creating, visualizing and testing a trading strategy with the R programming language
+
+Overview:
+
+The workshop will introduce the R toolchain by way of creating, coding and testing a trading strategy. Participants will gain an introductory technical foundation in R and will learn the general framework and benefits of the R ecosystem. It is not necessary to have any experience with R or programming, but participants should have the desire to spend a few hours getting their hands into data and learning some code. The substance and motivation will be familiar to energy and risk professionals and the goal is for that familiarity to provide context for the R code.    
+
+Structure: 
+
+We will create, code, simulate and test a real (but simple) trading strategy as a pedagogical tool for accomplishing the learning objectives.  We will first gather and import data, then clean and transform it to suit our trading strategy, create our trading logic, visualize/test our results and then produce an end product that can be deployed to end users. As we go through these steps, participants will learn the code that accompanies our work.
+
+Learning objectives: 
+    
+    + understand the R toolchain
+    + how it works and why its growing
+    + how it gets deployed into production
+    + its strengths and appeal to data scientists
+    + work a real world example from bottom (data import) to top (deployed standalone)
+    + foundation for future study should attendees so desire
+    + technical skills and packages covered: 
+    + data import, wrangling and transformation
+    + data modeling
+    + montecarlo simulation
+    + data visualization
+    + deployment to production via Shiny
+    + packages: readXL, dplyr, tidyr, ggplot2, highcharter, broom, tidyquant, timetk, tibbletime, purrr

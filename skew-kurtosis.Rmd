@@ -10,31 +10,36 @@ library(timetk)
 library(tibbletime)
 ```
 
-In previous posts [here](http://www.reproduciblefinance.com/2017/07/12/introduction-to-volatility/) and [here](http://www.reproduciblefinance.com/2017/07/18/introduction-to-rolling-volatility/) and [here](http://www.reproduciblefinance.com/2017/07/21/visualizing-portfolio-volatility/) and ... [here](http://www.reproduciblefinance.com/2017/09/18/asset-contribution-to-portfolio-volatility/), we spent quite a bit of time on portfolio volatility, using the standard deviation of returns as a proxy for volatility. Today we will begin to consider two additional statistics that aid on our understanding of return dispersion: skewness and kurtosis. Beyond being fancy words that impress people who haven't crammed for CFA level 1, these two concepts are both important and fascinating for lovers of returns distributions. Let's get to it! 
+In previous posts [here](http://www.reproduciblefinance.com/2017/07/12/introduction-to-volatility/) and [here](http://www.reproduciblefinance.com/2017/07/18/introduction-to-rolling-volatility/) and [here](http://www.reproduciblefinance.com/2017/07/21/visualizing-portfolio-volatility/) and ... [here](http://www.reproduciblefinance.com/2017/09/18/asset-contribution-to-portfolio-volatility/), we spent quite a bit of time on portfolio volatility, using the standard deviation of returns as a proxy for volatility. Today we will begin to a two-part series on additional statistics that aid our understanding of return dispersion: skewness and kurtosis. Beyond being fancy words and required vocabulary for CFA level 1, these two concepts are both important and fascinating for lovers of returns distributions. For today, we will focus on skewness. 
 
 ### Skew
 
-Skewness is the degree to which returns are asymetric around the mean.  Since a normal distribtuion is symmetric around the mean, skewness can be taken as one measure of how returns are not distributed normally. Why does skewness matter? If portfolio returns are right, or positively, skewed, it implies numerous small negative returns and a few large positive returns.  If portfolio returns are left, or negatively, skewed, it implies numerous small positive returns and few large negative returns. The phrase "large negative returns" should trigger pavlovian sweating for investors, even if it's preceded by a diminuitve modifier like "just a few". For a portfolio manager, or any investor, a negatively skewed distribution of returns implies a portolio at risk of rare but large losses. This makes us nervous and is a bit like saying, I'm healthy, except for my occasional massive heart attack.
+Skewness is the degree to which returns are asymmetric around the mean.  Since a normal distribution is symmetric around the mean, skewness can be taken as one measure of how returns are not distributed normally. Why does skewness matter? If portfolio returns are right, or positively, skewed, it implies numerous small negative returns and a few large positive returns.  If portfolio returns are left, or negatively, skewed, it implies numerous small positive returns and few large negative returns. The phrase "large negative returns" should trigger pavlovian sweating for investors, even if it's preceded by a diminuitve modifier like "just a few". For a portfolio manager, a negatively skewed distribution of returns implies a portolio at risk of rare but large losses. This makes us nervous and is a bit like saying, I'm healthy, except for my occasional massive heart attack.
 
 Why do we need skew? Doesn't standard deviation already address risk? Yes, standard deviation does, but have a look at the equation for sd: 
 
 $$Standard~Deviation=\sqrt{\sum_{t=1}^n (x_i-\overline{x})^2/n}$$
 
 
-And here's the equation for skew: 
+And here's one equation for skew: 
 
-(sum((x - mean)^3)/n)/(sum((x - mean)^2)/n) ^ 3/2
+$$Skew=\sum_{t=1}^n (x_i-\overline{x})^3/n \bigg/ (\sum_{t=1}^n (x_i-\overline{x})^2/n)^{3/2}$$
 
-$$Skew=\sum_{t=1}^n (x_i-\overline{x})^3/n/(\sum_{t=1}^n (x_i-\overline{x})^2/n)^{3/2} $$
+The skew numerator raises distance from the mean to the third power - it gives plenty of weight to any outliers. 
 
-Notice how standard deviation gives weight but not special weight to huge outliers, like those massive heart attacks. Skew pays more attention to those and a high skew alerts us to look for and explain those outlying events. 
+We will start by calculating the skewness of our portfolio and emphasizing different methodologies and reproducibility. 
+
+OK, that's worked fine but let's do some more exploring because our portfolio doesn't have much skew, this isn't a great example. How could we find a portfolio or stock that does have skew? 
+
+We could alter our weights? We could search all of the S&P500 for the top skews, and do that by sector. 
+
 
 ```{r}
 symbols <- c("^GSPC", "^IRX")
 #names <- c("spy", "treas")
 
 index_weekly_returns <- symbols %>% 
-  tq_get(get = "stock.prices", from = "1990-01-01") %>% 
+  tq_get(get = "stock.prices", from = "1993-01-01") %>% 
   group_by(symbol) %>% 
   tq_transmute(adjusted, periodReturn, period = "weekly", col_rename = "returns")
 
